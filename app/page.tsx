@@ -1,7 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Smile, Frown, Search, Lock, Package, Smartphone, Download, X, ShieldCheck, Trash2, ExternalLink, Timer, AlertCircle } from 'lucide-react';
+import { Smile, Frown, Search, Lock, Package, Smartphone, Download, X, ShieldCheck, Trash2, ExternalLink, Timer, AlertCircle, RefreshCw } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+
+interface Item {
+  id: number;
+  title: string;
+  category: 'Mod' | 'App';
+  version: string;
+  downloads: number;
+  image: string;
+  description: string;
+  download_url: string;
+}
 
 export default function Home() {
   const [filter, setFilter] = useState<'all' | 'Mod' | 'App'>('all');
@@ -24,40 +36,31 @@ export default function Home() {
   const [newDescription, setNewDescription] = useState('');
   const [newDownloadUrl, setNewDownloadUrl] = useState('');
 
+  // Estado de los items y de carga
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const SECRET_PASSWORD = 'ys4;3/0:g';
 
-  const [items, setItems] = useState([
-    {
-      id: 1,
-      title: "Minecraft Ultra Shaders",
-      category: "Mod",
-      version: "v1.20.4",
-      downloads: 1420,
-      image: "https://images.unsplash.com/photo-1627856013091-fed6e4e30025?w=500&auto=format&fit=crop&q=60",
-      description: "Sombra dinámica y luces realistas para mejorar tu experiencia gráfica.",
-      downloadUrl: "https://mediafire.com"
-    },
-    {
-      id: 2,
-      title: "Pro Video Editor",
-      category: "App",
-      version: "v3.1.0 (APK)",
-      downloads: 890,
-      image: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=500&auto=format&fit=crop&q=60",
-      description: "Editor de video profesional con exportación rápida en 4K.",
-      downloadUrl: "https://mega.nz"
-    },
-    {
-      id: 3,
-      title: "GTA San Andreas HD Textures",
-      category: "Mod",
-      version: "v2.0",
-      downloads: 3200,
-      image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=60",
-      description: "Texturas remasterizadas en alta definición para mapas y vehículos.",
-      downloadUrl: "https://drive.google.com"
+  // Cargar items desde Supabase
+  const fetchItems = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('items')
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (error) {
+      console.error('Error cargando datos de Supabase:', error);
+    } else if (data) {
+      setItems(data as Item[]);
     }
-  ]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
   // Manejar el temporizador de la descarga
   useEffect(() => {
@@ -72,8 +75,8 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [selectedDownload, countdown]);
 
-  const handleOpenDownloadModal = (item: { title: string; downloadUrl: string; version: string }) => {
-    setSelectedDownload({ title: item.title, url: item.downloadUrl, version: item.version });
+  const handleOpenDownloadModal = (item: { title: string; download_url: string; version: string }) => {
+    setSelectedDownload({ title: item.title, url: item.download_url, version: item.version });
     setCountdown(5); // Segundos de espera
     setCanDownload(false);
   };
@@ -87,10 +90,9 @@ export default function Home() {
     }
   };
 
-  const handleCreateItem = (e: React.FormEvent) => {
+  const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
     const newItem = {
-      id: Date.now(),
       title: newTitle,
       category: newCategory,
       version: newVersion,
@@ -99,21 +101,32 @@ export default function Home() {
         ? "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=500&auto=format&fit=crop&q=60"
         : "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=500&auto=format&fit=crop&q=60",
       description: newDescription,
-      downloadUrl: newDownloadUrl || "#"
+      download_url: newDownloadUrl || "#"
     };
 
-    setItems([newItem, ...items]);
-    setShowAdminModal(false);
-   
-    setNewTitle('');
-    setNewVersion('');
-    setNewDescription('');
-    setNewDownloadUrl('');
+    const { data, error } = await supabase.from('items').insert([newItem]).select();
+
+    if (error) {
+      alert('Error guardando en la base de datos: ' + error.message);
+    } else if (data) {
+      setItems([data[0] as Item, ...items]);
+      setShowAdminModal(false);
+     
+      setNewTitle('');
+      setNewVersion('');
+      setNewDescription('');
+      setNewDownloadUrl('');
+    }
   };
 
-  const handleDeleteItem = (idToDelete: number) => {
-    if (confirm('¿Estás seguro de que quieres eliminar esta publicación?')) {
-      setItems(items.filter(item => item.id !== idToDelete));
+  const handleDeleteItem = async (idToDelete: number) => {
+    if (confirm('¿Estás seguro de que quieres eliminar esta publicación de la base de datos?')) {
+      const { error } = await supabase.from('items').delete().eq('id', idToDelete);
+      if (error) {
+        alert('Error al eliminar: ' + error.message);
+      } else {
+        setItems(items.filter(item => item.id !== idToDelete));
+      }
     }
   };
 
@@ -205,61 +218,73 @@ export default function Home() {
         </div>
 
         {/* Grilla de Tarjetas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden hover:border-neutral-600 transition group flex flex-col relative"
-            >
-              {isAdminAuthenticated && (
-                <button
-                  onClick={() => handleDeleteItem(item.id)}
-                  title="Eliminar publicación"
-                  className="absolute top-3 left-3 bg-red-950/80 hover:bg-red-600 border border-red-800/80 text-red-200 hover:text-white p-2 rounded-xl backdrop-blur-md z-10 transition"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-
-              <div className="h-44 overflow-hidden relative bg-neutral-900">
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300 opacity-80 group-hover:opacity-100"
-                />
-                <span className="absolute top-3 right-3 bg-black/80 backdrop-blur-md text-[11px] font-mono px-2 py-1 rounded-lg border border-neutral-700 text-neutral-300">
-                  {item.version}
-                </span>
-              </div>
-
-              <div className="p-5 flex-1 flex flex-col justify-between">
-                <div>
-                  <span className="inline-block text-[10px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded bg-neutral-900 text-neutral-400 border border-neutral-800 mb-2 font-mono">
-                    {item.category}
-                  </span>
-                  <h3 className="font-bold text-base text-white group-hover:text-neutral-200 transition">
-                    {item.title}
-                  </h3>
-                  <p className="text-neutral-400 text-xs mt-1.5 line-clamp-2 leading-relaxed">
-                    {item.description}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between mt-5 pt-3 border-t border-neutral-900">
-                  <span className="text-[11px] text-neutral-500 font-mono flex items-center gap-1">
-                    <Download className="w-3.5 h-3.5" /> {item.downloads}
-                  </span>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-neutral-500">
+            <RefreshCw className="w-8 h-8 animate-spin mb-3 text-white" />
+            <p className="text-xs font-mono">Cargando publicaciones desde Supabase...</p>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="text-center py-20 border border-dashed border-neutral-800 rounded-2xl">
+            <p className="text-neutral-400 text-sm font-mono">No se encontraron publicaciones en la base de datos.</p>
+            <p className="text-neutral-600 text-xs mt-1">Usa el panel de Admin para agregar la primera.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredItems.map((item) => (
+              <div
+                key={item.id}
+                className="bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden hover:border-neutral-600 transition group flex flex-col relative"
+              >
+                {isAdminAuthenticated && (
                   <button
-                    onClick={() => handleOpenDownloadModal(item)}
-                    className="bg-white hover:bg-neutral-200 text-black px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+                    onClick={() => handleDeleteItem(item.id)}
+                    title="Eliminar publicación"
+                    className="absolute top-3 left-3 bg-red-950/80 hover:bg-red-600 border border-red-800/80 text-red-200 hover:text-white p-2 rounded-xl backdrop-blur-md z-10 transition"
                   >
-                    <Download className="w-3.5 h-3.5" /> Descargar
+                    <Trash2 className="w-4 h-4" />
                   </button>
+                )}
+
+                <div className="h-44 overflow-hidden relative bg-neutral-900">
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300 opacity-80 group-hover:opacity-100"
+                  />
+                  <span className="absolute top-3 right-3 bg-black/80 backdrop-blur-md text-[11px] font-mono px-2 py-1 rounded-lg border border-neutral-700 text-neutral-300">
+                    {item.version}
+                  </span>
+                </div>
+
+                <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div>
+                    <span className="inline-block text-[10px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded bg-neutral-900 text-neutral-400 border border-neutral-800 mb-2 font-mono">
+                      {item.category}
+                    </span>
+                    <h3 className="font-bold text-base text-white group-hover:text-neutral-200 transition">
+                      {item.title}
+                    </h3>
+                    <p className="text-neutral-400 text-xs mt-1.5 line-clamp-2 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-5 pt-3 border-t border-neutral-900">
+                    <span className="text-[11px] text-neutral-500 font-mono flex items-center gap-1">
+                      <Download className="w-3.5 h-3.5" /> {item.downloads}
+                    </span>
+                    <button
+                      onClick={() => handleOpenDownloadModal(item)}
+                      className="bg-white hover:bg-neutral-200 text-black px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Descargar
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Modal de Descarga con Conteo y Anuncio */}
@@ -283,17 +308,16 @@ export default function Home() {
             <h2 className="text-xl font-bold mt-1 text-white">{selectedDownload.title}</h2>
             <p className="text-xs font-mono text-neutral-400 mt-0.5 mb-6">Versión: {selectedDownload.version}</p>
 
-            {/* Espacio Reservado para el Anuncio de Adsterra/Monetag */}
+            {/* Espacio Reservado para el Anuncio */}
             <div className="bg-neutral-900/60 border border-neutral-800 border-dashed rounded-xl p-8 mb-6 relative overflow-hidden flex flex-col items-center justify-center min-h-[160px]">
               <span className="text-[10px] font-mono text-neutral-600 uppercase tracking-widest absolute top-2 left-3">
                 Publicidad
               </span>
              
-              {/* Este div es donde pegarás el script de tu red de anuncios más adelante */}
               <div id="ad-banner-container" className="text-center">
                 <AlertCircle className="w-6 h-6 text-neutral-600 mx-auto mb-2 animate-pulse" />
                 <p className="text-xs text-neutral-500 font-mono">
-                  [ Aquí aparecerá el banner publicitario de Adsterra ]
+                  [ Aquí aparecerá el banner publicitario ]
                 </p>
               </div>
             </div>
@@ -370,7 +394,7 @@ export default function Home() {
                   </button>
                 </div>
                 <h2 className="text-lg font-bold mb-1">Publicar Mod / App</h2>
-                <p className="text-xs text-neutral-500 mb-4">Llena los datos para crear un ítem nuevo.</p>
+                <p className="text-xs text-neutral-500 mb-4">Llena los datos para crear un ítem nuevo en Supabase.</p>
 
                 <form onSubmit={handleCreateItem} className="space-y-3 font-mono">
                   <div>
