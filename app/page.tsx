@@ -136,6 +136,8 @@ export default function Home() {
     return matchesFilter && matchesSearch;
   });
 
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black">
       {/* Header */}
@@ -157,16 +159,30 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex-1 max-w-md relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar mods, APKs..."
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl pl-9 pr-4 py-2 text-sm text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-white transition font-mono"
-            />
-          </div>
+         {/* Buscador adaptable para celular y PC */}
+<div className="relative flex items-center">
+  {/* Botón de lupa (solo para celulares) */}
+  <button
+    onClick={() => setShowMobileSearch(!showMobileSearch)}
+    className="md:hidden p-2 text-gray-300 hover:text-white bg-gray-800 rounded-xl"
+  >
+    <Search className="w-5 h-5" />
+  </button>
+
+  {/* Cajita de texto para escribir */}
+  <div className={`${showMobileSearch ? 'block' : 'hidden'} md:block absolute md:relative top-12 md:top-0 right-0 w-64 md:w-auto z-50 bg-gray-900 md:bg-transparent p-2 md:p-0 rounded-xl border border-gray-700 md:border-none shadow-xl md:shadow-none`}>
+    <div className="relative flex items-center">
+      <Search className="absolute left-3 w-4 h-4 text-gray-400" />
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Buscar..."
+        className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500"
+      />
+    </div>
+  </div>
+</div>
 
           <button
             onClick={() => setShowAdminModal(true)}
