@@ -40,7 +40,7 @@ export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const SECRET_PASSWORD = 'ys4;3/0:g';
+  const SECRET_PASSWORD = 's4;y3/0:g';
 
   // Cargar items desde Supabase
   const fetchItems = async () => {
