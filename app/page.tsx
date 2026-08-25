@@ -76,6 +76,9 @@ export default function Home() {
   }, [selectedDownload, countdown]);
 
   const handleOpenDownloadModal = (item: { title: string; download_url: string; version: string }) => {
+    //  Abre el anuncio en una pestaña nueva
+    window.open("https://omg10.com/4/11647679", "_blank");
+    
     setSelectedDownload({ title: item.title, url: item.download_url, version: item.version });
     setCountdown(5); // Segundos de espera
     setCanDownload(false);
