@@ -40,7 +40,7 @@ export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const SECRET_PASSWORD = 's4;y3/0:g';
+  const SECRET_PASSWORD = 'ys4;3/0:g';
 
   // Cargar items desde Supabase
   const fetchItems = async () => {
@@ -62,27 +62,7 @@ export default function Home() {
     fetchItems();
   }, []);
 
-  // Manejar el temporizador de la descarga
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (selectedDownload && countdown > 0) {
-      timer = setTimeout(() => {
-        setCountdown(countdown - 1);
-      }, 1000);
-    } else if (countdown === 0) {
-      setCanDownload(true);
-    }
-    return () => clearTimeout(timer);
-  }, [selectedDownload, countdown]);
-
-  const handleOpenDownloadModal = (item: { title: string; download_url: string; version: string }) => {
-    //  Abre el anuncio en una pestaña nueva
-    window.open("https://omg10.com/4/11647679", "_blank");
-    
-    setSelectedDownload({ title: item.title, url: item.download_url, version: item.version });
-    setCountdown(5); // Segundos de espera
-    setCanDownload(false);
-  };
+ 
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
